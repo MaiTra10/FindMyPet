@@ -1,10 +1,6 @@
-variable "aws_region" {
-    type        = string
-    description = "The AWS region to deploy resources to"
-}
 variable "database_url" {
-    type        = string
-    description = "The session pooler URL for the PostgreSQL database"
+    type = string
+    description = ""
 }
 variable "google_client_id" {
     type        = string
