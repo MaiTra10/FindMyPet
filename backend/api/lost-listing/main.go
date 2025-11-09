@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,8 +20,8 @@ type LostPetRequest struct {
 	Name       string   `json:"name"`
 	AnimalType string   `json:"animalType"`
 	Gender     *string  `json:"gender,omitempty"`
-	Breed      []string `json:"breed,omitempty"` // Array
-	Color      []string `json:"color"`           // Array
+	Breed      []string `json:"breed,omitempty"`
+	Color      []string `json:"color"`
 	Age        *string  `json:"age,omitempty"`
 	DateLost   string   `json:"dateLost"`
 	Location   string   `json:"location"`
@@ -30,6 +31,10 @@ type LostPetRequest struct {
 		Lat float64 `json:"lat"`
 		Lng float64 `json:"lng"`
 	} `json:"locationCoords,omitempty"`
+
+	City            string `json:"city"`
+	ProvinceOrState string `json:"provinceOrState"`
+	Country         string `json:"country"`
 
 	Description string  `json:"description"`
 	PetID       *string `json:"petId,omitempty"`
@@ -59,7 +64,7 @@ type LostPetResponse struct {
 type Location struct {
 	ID            int     `json:"id"`
 	StreetAddress string  `json:"street_address"`
-	PostalCode    *string `json:"postal_code,omitempty"`
+	PostalCode    *string `json:"postal_code"`
 	Latitude      float64 `json:"latitude"`
 	Longitude     float64 `json:"longitude"`
 	CityID        *int    `json:"city_id,omitempty"`
@@ -90,21 +95,35 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 }
 
+func getOrCreateCity(ctx context.Context, conn *pgx.Conn, cityName, province, country string) (int, error) {
+	var cityID int
+	query := `SELECT id FROM cities WHERE city_name = $1 AND province_or_state = $2 AND country = $3 LIMIT 1`
+	err := conn.QueryRow(ctx, query, cityName, province, country).Scan(&cityID)
+	if err == nil {
+		return cityID, nil
+	}
+	if err != pgx.ErrNoRows {
+		return 0, err
+	}
+
+	insertQuery := `INSERT INTO cities (city_name, province_or_state, country) VALUES ($1, $2, $3) RETURNING id`
+	err = conn.QueryRow(ctx, insertQuery, cityName, province, country).Scan(&cityID)
+	if err != nil {
+		return 0, err
+	}
+
+	return cityID, nil
+}
+
 func extractUserFromToken(request events.APIGatewayProxyRequest) (string, string, error) {
 	authHeader := request.Headers["Authorization"]
-	if authHeader == "" {
-		authHeader = request.Headers["authorization"]
-	}
-	if authHeader == "" {
-		return "", "", &AuthError{Message: "missing authorization header"}
-	}
 
 	token := strings.TrimPrefix(authHeader, "Bearer ")
 	token = strings.TrimSpace(token)
 
 	tokenClaims, err := generic.TokenClaims(token)
 	if err != nil {
-		return "", "", &AuthError{Message: "invalid or expired token", Err: err}
+		return "", "", &AuthError{Message: fmt.Sprintf("invalid or expired token!, Token:%s, Error: %s", token, err.Error())}
 	}
 
 	email, ok := tokenClaims["email"].(string)
@@ -115,7 +134,7 @@ func extractUserFromToken(request events.APIGatewayProxyRequest) (string, string
 	return token, email, nil
 }
 
-func getUserUUID(ctx context.Context, conn *pgx.Conn, email string) (string, error) {
+func GetUserUUID(ctx context.Context, conn *pgx.Conn, email string) (string, error) {
 	var userUUID string
 	queryUser := `SELECT user_uuid FROM users WHERE email = $1`
 	err := conn.QueryRow(ctx, queryUser, email).Scan(&userUUID)
@@ -174,9 +193,7 @@ func (e *ValidationError) Error() string {
 	return e.Message
 }
 
-// Helper to create or get location ID
-func getOrCreateLocation(ctx context.Context, conn *pgx.Conn, streetAddress string, postalCode *string, lat, lng float64) (int, error) {
-	// First try to find existing location
+func getOrCreateLocation(ctx context.Context, conn *pgx.Conn, streetAddress string, postalCode *string, lat, lng float64, cityID int) (int, error) {
 	var locationID int
 	query := `SELECT id FROM locations WHERE street_address = $1 AND latitude = $2 AND longitude = $3 LIMIT 1`
 	err := conn.QueryRow(ctx, query, streetAddress, lat, lng).Scan(&locationID)
@@ -187,9 +204,8 @@ func getOrCreateLocation(ctx context.Context, conn *pgx.Conn, streetAddress stri
 		return 0, err
 	}
 
-	// Create new location (city_id is optional, can be NULL)
-	insertQuery := `INSERT INTO locations (street_address, postal_code, latitude, longitude, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id`
-	err = conn.QueryRow(ctx, insertQuery, streetAddress, postalCode, lat, lng, time.Now()).Scan(&locationID)
+	insertQuery := `INSERT INTO locations (street_address, postal_code, latitude, longitude, city_id, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
+	err = conn.QueryRow(ctx, insertQuery, streetAddress, postalCode, lat, lng, cityID, time.Now()).Scan(&locationID)
 	if err != nil {
 		return 0, err
 	}
@@ -202,7 +218,7 @@ func handleCreate(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 	if err != nil {
 		if authErr, ok := err.(*AuthError); ok {
 			return generic.Response(http.StatusUnauthorized, generic.Json{
-				"error": authErr.Message,
+				"error": authErr.Message, "message": authErr.Err,
 			})
 		}
 		return generic.Response(http.StatusUnauthorized, generic.Json{
@@ -261,8 +277,17 @@ func handleCreate(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 		})
 	}
 
+	// Create or get city
+	cityID, err := getOrCreateCity(ctx, conn, req.City, req.ProvinceOrState, req.Country)
+	if err != nil {
+		return generic.Response(http.StatusInternalServerError, generic.Json{
+			"error":   "failed to create or fetch city",
+			"message": err.Error(),
+		})
+	}
+
 	// Create or get location
-	locationID, err := getOrCreateLocation(ctx, conn, req.Location, req.PostalCode, req.LocationCoords.Lat, req.LocationCoords.Lng)
+	locationID, err := getOrCreateLocation(ctx, conn, req.Location, req.PostalCode, req.LocationCoords.Lat, req.LocationCoords.Lng, cityID)
 	if err != nil {
 		return generic.Response(http.StatusInternalServerError, generic.Json{
 			"error":   "failed to create location",
@@ -632,12 +657,22 @@ func handleUpdate(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 		}
 	}
 	if req.Location != "" && req.LocationCoords != nil {
-		locationID, err := getOrCreateLocation(ctx, conn, req.Location, req.PostalCode, req.LocationCoords.Lat, req.LocationCoords.Lng)
+		// 1. Create or get city
+		cityID, err := getOrCreateCity(ctx, conn, req.City, req.ProvinceOrState, req.Country)
+		if err != nil {
+			return generic.Response(http.StatusInternalServerError, generic.Json{
+				"error": "failed to create or fetch city",
+			})
+		}
+
+		// 2. Create or get location with cityID
+		locationID, err := getOrCreateLocation(ctx, conn, req.Location, req.PostalCode, req.LocationCoords.Lat, req.LocationCoords.Lng, cityID)
 		if err != nil {
 			return generic.Response(http.StatusInternalServerError, generic.Json{
 				"error": "failed to update location",
 			})
 		}
+
 		updateFields = append(updateFields, "last_seen_location = $"+strconv.Itoa(argPos))
 		args = append(args, locationID)
 		argPos++
@@ -670,6 +705,19 @@ func handleUpdate(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 		"message": "Lost pet listing updated successfully",
 		"id":      listingID,
 	})
+}
+
+func getUserUUID(ctx context.Context, conn *pgx.Conn, email string) (string, error) {
+	var userUUID string
+	queryUser := `SELECT user_uuid FROM users WHERE email = $1`
+	err := conn.QueryRow(ctx, queryUser, email).Scan(&userUUID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return "", &NotFoundError{Message: "user not found"}
+		}
+		return "", err
+	}
+	return userUUID, nil
 }
 
 // DELETE - DELETE /lost-listing/{id}
