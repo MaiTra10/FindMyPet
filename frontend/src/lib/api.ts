@@ -1,6 +1,4 @@
-// Centralized API Service
-// This file contains all API calls for the application
-// Switch between mock and real backend by changing VITE_USE_MOCK_API in .env
+
 
 import { API_CONFIG, getApiUrl } from './apiConfig';
 import { toast } from 'sonner';

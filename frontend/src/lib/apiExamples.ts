@@ -1,9 +1,4 @@
-/**
- * API Usage Examples
- * 
- * This file contains examples of how to use the centralized API
- * in different components and scenarios.
- */
+
 
 import { 
   createLostPet, 
@@ -15,9 +10,6 @@ import {
   uploadImage
 } from './api';
 
-// ============================================================================
-// EXAMPLE 1: Creating a Lost Pet Report
-// ============================================================================
 
 export async function exampleCreateLostPet(formData: FormData, userEmail: string) {
   const petData = {

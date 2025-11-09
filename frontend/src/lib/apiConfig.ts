@@ -1,7 +1,4 @@
-// API Configuration
-// Set your environment variables to switch between mock and real backend
 
-// Safely access environment variables
 const getEnvVar = (key: string, defaultValue: string = ''): string => {
   try {
     return import.meta?.env?.[key] || defaultValue;

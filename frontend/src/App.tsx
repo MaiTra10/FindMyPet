@@ -17,19 +17,11 @@ import { PetType } from "./types/pet";
 import logoImage from "figma:asset/2efd0e818f5722b9374e1fd5a951dc99b3656823.png";
 import "./styles/globals.css";
 
-// ========================================
-// AUTHENTICATION MODE TOGGLE
-// ========================================
-// Set to true to use mock/guest authentication
-// Set to false to use real Google OAuth authentication
-export const USE_MOCK_AUTH = false;
-// ========================================
 
-// Google OAuth Client ID
-// For frontend-only authentication (presentation/demo purposes)
-// Make sure your Google Cloud Console has these authorized JavaScript origins:
-// - http://localhost:5173 (or your local dev URL)
-// - https://your-production-domain.com
+export const USE_MOCK_AUTH = false;
+
+
+
 const GOOGLE_CLIENT_ID = "545463699061-8ragccbe0lgfb662pco5qnj2q65v452t.apps.googleusercontent.com";
 
 function AppContent() {
