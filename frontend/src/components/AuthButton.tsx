@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { LogIn, LogOut, FileText, ChevronDown, User } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { LoginModal } from "./LoginModal";

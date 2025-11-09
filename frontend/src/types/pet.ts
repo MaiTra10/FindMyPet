@@ -35,21 +35,22 @@ export interface PosterInfo {
 }
 
 export interface PetListing {
-  id: string;
-  type: ListingType;
-  name: string;
-  animalType: PetType;
-  gender: Gender;
-  breed?: string;
-  color: string;
-  age?: string;
-  dateReported: Date;
-  location: Location;
-  status: PetStatus;
-  imageUrl?: string;
-  description?: string;
-  contactInfo?: string;
-  isFollowed?: boolean;
-  createdBy?: string;
-  postedBy?: PosterInfo;
+	id: string;
+	type: ListingType;
+	name: string;
+	animalType: PetType;
+	gender: Gender;
+	breed?: string;
+	color: string;
+	age?: string;
+	dateReported: Date;
+	location: Location;
+	status: PetStatus;
+	imageUrl?: string; // Deprecated: use imageUrls instead
+	imageUrls?: string[]; // Array of image URLs (max 4)
+	description?: string;
+	contactInfo?: string;
+	isFollowed?: boolean;
+	createdBy?: string;
+	postedBy?: PosterInfo;
 }

@@ -134,36 +134,80 @@ export function PetDetails() {
             animate={{ opacity: 1, x: 0 }}
             className="space-y-4"
           >
-            <div className="relative rounded-3xl overflow-hidden bg-muted h-[500px]">
-              {pet.imageUrl ? (
-                <ImageWithFallback
-                  src={pet.imageUrl}
-                  alt={pet.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  {(() => {
-                    const IconComponent = getTypeIcon(pet.animalType);
-                    return <IconComponent className="w-32 h-32 text-muted-foreground" />;
-                  })()}
+            {(() => {
+              // Use imageUrls array if available, otherwise fall back to imageUrl
+              const images = (pet.imageUrls && pet.imageUrls.length > 0) 
+                ? pet.imageUrls 
+                : (pet.imageUrl ? [pet.imageUrl] : []);
+              
+              if (images.length === 0) {
+                return (
+                  <div className="relative rounded-3xl overflow-hidden bg-muted h-[500px]">
+                    <div className="w-full h-full flex items-center justify-center">
+                      {(() => {
+                        const IconComponent = getTypeIcon(pet.animalType);
+                        return <IconComponent className="w-32 h-32 text-muted-foreground" />;
+                      })()}
+                    </div>
+                    {/* Status Badge */}
+                    <div className="absolute top-4 right-4">
+                      <Badge className={`${getStatusColor(pet.status)} text-white border-0 text-lg px-4 py-2`}>
+                        {pet.status}
+                      </Badge>
+                    </div>
+                    {/* Type Badge */}
+                    <div className="absolute top-4 left-4">
+                      <Badge className="bg-white/90 backdrop-blur-sm border-0 text-lg px-4 py-2">
+                        {pet.type}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Show main image with thumbnail gallery if multiple images
+              return (
+                <div className="space-y-4">
+                  <div className="relative rounded-3xl overflow-hidden bg-muted h-[500px]">
+                    <ImageWithFallback
+                      src={images[0]}
+                      alt={pet.name}
+                      className="w-full h-full object-cover"
+                    />
+                    {/* Status Badge */}
+                    <div className="absolute top-4 right-4">
+                      <Badge className={`${getStatusColor(pet.status)} text-white border-0 text-lg px-4 py-2`}>
+                        {pet.status}
+                      </Badge>
+                    </div>
+                    {/* Type Badge */}
+                    <div className="absolute top-4 left-4">
+                      <Badge className="bg-white/90 backdrop-blur-sm border-0 text-lg px-4 py-2">
+                        {pet.type}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  {/* Thumbnail gallery for additional images */}
+                  {images.length > 1 && (
+                    <div className="grid grid-cols-4 gap-2">
+                      {images.slice(1, 5).map((url, index) => (
+                        <div
+                          key={index}
+                          className="relative rounded-lg overflow-hidden bg-muted aspect-square cursor-pointer hover:opacity-80 transition-opacity"
+                        >
+                          <ImageWithFallback
+                            src={url}
+                            alt={`${pet.name} - Image ${index + 2}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {/* Status Badge */}
-              <div className="absolute top-4 right-4">
-                <Badge className={`${getStatusColor(pet.status)} text-white border-0 text-lg px-4 py-2`}>
-                  {pet.status}
-                </Badge>
-              </div>
-
-              {/* Type Badge */}
-              <div className="absolute top-4 left-4">
-                <Badge className="bg-white/90 backdrop-blur-sm border-0 text-lg px-4 py-2">
-                  {pet.type}
-                </Badge>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Poster Profile Section */}
             {pet.postedBy && (

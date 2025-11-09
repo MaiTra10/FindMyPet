@@ -19,3 +19,10 @@ output "lost_listing_function_name" {
 output "lost_listing_invoke_arn" {
     value = module.lost-listing-lambda.invoke_arn
 }
+# image-upload
+output "image_upload_function_name" {
+    value = module.image-upload-lambda.function_name
+}
+output "image_upload_invoke_arn" {
+    value = module.image-upload-lambda.invoke_arn
+}

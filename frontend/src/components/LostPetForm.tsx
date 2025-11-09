@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
-import { useState } from "react";
-import { MapPin, Camera, Send } from "lucide-react";
+import React, { useState } from "react";
+import { MapPin, Send } from "lucide-react";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
@@ -11,6 +11,7 @@ import { Button } from "./ui/button";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { LocationPicker } from "./LocationPicker";
+import { ImageUpload } from "./ImageUpload";
 
 export function LostPetForm() {
   const [date, setDate] = useState<Date>();
@@ -19,6 +20,7 @@ export function LostPetForm() {
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [location, setLocation] = useState("");
   const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +39,7 @@ export function LostPetForm() {
       location: formData.get("location") as string,
       locationCoords: locationCoords,
       description: description,
+      imageUrls: imageUrls,
       contact: formData.get("contact") as string,
     };
 
@@ -79,19 +82,14 @@ export function LostPetForm() {
 
       {/* Pet Photo Upload */}
       <div>
-        <Label>Pet Photo</Label>
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="mt-2 border-2 border-dashed border-border rounded-2xl p-8 text-center cursor-pointer hover:border-primary/50 transition-all"
-        >
-          <Camera className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground mb-2">
-            Click to upload or drag and drop
-          </p>
-          <p className="text-xs text-muted-foreground">
-            PNG, JPG up to 10MB
-          </p>
-        </motion.div>
+        <Label>Pet Photos (up to 4)</Label>
+        <div className="mt-2">
+          <ImageUpload
+            maxImages={4}
+            onImagesChange={setImageUrls}
+            existingImages={imageUrls}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -280,29 +280,64 @@ export async function fetchUserProfile(): Promise<any> {
 // ============================================
 
 /**
- * Upload an image
- * POST /api/upload
+ * Get a presigned URL for uploading an image to S3
+ * POST /api/image-upload
  */
-export async function uploadImage(file: File): Promise<string> {
+export async function getPresignedUploadURL(fileName: string, contentType: string): Promise<{ uploadUrl: string; fileKey: string; fileURL: string }> {
   try {
-    const formData = new FormData();
-    formData.append("image", file);
-
-    const response = await fetch(`${API_BASE_URL}/upload`, {
+    const response = await fetch(`${API_BASE_URL}/image-upload`, {
       method: "POST",
-      headers: {
-        // Don't set Content-Type for FormData - browser will set it with boundary
-        Authorization: `Bearer ${getAuthToken()}`,
-      },
-      body: formData,
+      headers: getHeaders(),
+      body: JSON.stringify({
+        fileName,
+        contentType,
+      }),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to upload image: ${response.statusText}`);
+      throw new Error(`Failed to get presigned URL: ${response.statusText}`);
     }
 
     const data = await response.json();
-    return data.url; // Assuming the API returns { url: "..." }
+    return {
+      uploadUrl: data.uploadUrl,
+      fileKey: data.fileKey,
+      fileURL: data.fileURL,
+    };
+  } catch (error) {
+    console.error("Error getting presigned URL:", error);
+    throw error;
+  }
+}
+
+/**
+ * Upload an image to S3 using presigned URL
+ * This function handles the full upload flow:
+ * 1. Get presigned URL from backend
+ * 2. Upload file directly to S3
+ * 3. Return the public URL
+ */
+export async function uploadImage(file: File): Promise<string> {
+  try {
+    // Step 1: Get presigned URL
+    const contentType = file.type || "image/jpeg";
+    const { uploadUrl, fileURL } = await getPresignedUploadURL(file.name, contentType);
+
+    // Step 2: Upload file directly to S3
+    const uploadResponse = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": contentType,
+      },
+      body: file,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error(`Failed to upload image to S3: ${uploadResponse.statusText}`);
+    }
+
+    // Step 3: Return the public URL
+    return fileURL;
   } catch (error) {
     console.error("Error uploading image:", error);
     throw error;

@@ -84,3 +84,35 @@ module "lost_listing_endpoint" {
   request_validator_id  = module.rest_api.body_validator_id
   root_resource_id      = module.rest_api.root_resource_id
 }
+
+module "image_upload_endpoint" {
+  source = "./template-endpoint"
+
+  path_part             = "image-upload"
+  http_method           = "POST"
+  model_name            = "imageUploadModel"
+  description           = "Model for validating image upload presigned URL requests"
+  schema                = <<EOF
+  {
+    "type": "object",
+    "properties": {
+      "fileName": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Name of the file to upload"
+      },
+      "contentType": {
+        "type": "string",
+        "description": "MIME type of the file (e.g., image/jpeg, image/png)"
+      }
+    },
+    "required": ["fileName"]
+  }
+  EOF
+  func_name             = var.image_upload_function_name
+  invoke_arn            = var.image_upload_invoke_arn
+  rest_api_id           = module.rest_api.rest_api_id
+  execution_arn         = module.rest_api.execution_arn
+  request_validator_id  = module.rest_api.body_validator_id
+  root_resource_id      = module.rest_api.root_resource_id
+}

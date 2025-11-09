@@ -32,9 +32,10 @@ type LostPetRequest struct {
 		Lng float64 `json:"lng"`
 	} `json:"locationCoords,omitempty"`
 
-	City            string `json:"city"`
-	ProvinceOrState string `json:"provinceOrState"`
-	Country         string `json:"country"`
+	City            string   `json:"city"`
+	ProvinceOrState string   `json:"provinceOrState"`
+	Country         string   `json:"country"`
+	ImageURLs       []string `json:"imageUrls,omitempty"`
 
 	Description string  `json:"description"`
 	PetID       *string `json:"petId,omitempty"`
@@ -241,6 +242,13 @@ func handleCreate(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 		})
 	}
 
+	// Validate image URLs (max 4)
+	if len(req.ImageURLs) > 4 {
+		return generic.Response(http.StatusBadRequest, generic.Json{
+			"error": "maximum of 4 images allowed",
+		})
+	}
+
 	if req.LocationCoords == nil {
 		return generic.Response(http.StatusBadRequest, generic.Json{
 			"error": "locationCoords (lat, lng) are required",
@@ -306,9 +314,9 @@ func handleCreate(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 	insertQuery := `
 		INSERT INTO lost_pet_listing (
 			listing_owner, is_found, pet_name, pet_id, gender, breed, color,
-			animal_type, age, description, date_lost, last_seen_location, created_at
+			animal_type, age, description, image_urls, date_lost, last_seen_location, created_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 		) RETURNING id
 	`
 
@@ -325,6 +333,7 @@ func handleCreate(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 		req.AnimalType,  // animal_type
 		req.Age,         // age (nullable)
 		req.Description, // description
+		req.ImageURLs,   // image_urls (array, nullable)
 		dateLost,        // date_lost
 		locationID,      // last_seen_location
 		time.Now(),      // created_at
@@ -655,6 +664,16 @@ func handleUpdate(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 			args = append(args, time.Now())
 			argPos++
 		}
+	}
+	if req.ImageURLs != nil {
+		if len(req.ImageURLs) > 4 {
+			return generic.Response(http.StatusBadRequest, generic.Json{
+				"error": "maximum of 4 images allowed",
+			})
+		}
+		updateFields = append(updateFields, "image_urls = $"+strconv.Itoa(argPos))
+		args = append(args, req.ImageURLs)
+		argPos++
 	}
 	if req.Location != "" && req.LocationCoords != nil {
 		// 1. Create or get city

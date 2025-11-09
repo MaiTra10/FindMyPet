@@ -31,10 +31,11 @@ type SightingRequest struct {
 		Lng float64 `json:"lng"`
 	} `json:"locationCoords,omitempty"`
 
-	City            string  `json:"city"`
-	ProvinceOrState string  `json:"provinceOrState"`
-	Country         string  `json:"country"`
-	PostalCode      *string `json:"postalCode,omitempty"`
+	City            string   `json:"city"`
+	ProvinceOrState string   `json:"provinceOrState"`
+	Country         string   `json:"country"`
+	PostalCode      *string  `json:"postalCode,omitempty"`
+	ImageURLs       []string `json:"imageUrls,omitempty"`
 
 	IsFound *bool `json:"isFound,omitempty"`
 }
@@ -344,6 +345,13 @@ func handleCreate(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 		})
 	}
 
+	// Validate image URLs (max 4)
+	if len(req.ImageURLs) > 4 {
+		return generic.Response(http.StatusBadRequest, generic.Json{
+			"error": "maximum of 4 images allowed",
+		})
+	}
+
 	ctx := context.Background()
 	conn, err := generic.SupabaseConnect()
 	if err != nil {
@@ -379,9 +387,9 @@ func handleCreate(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 	insertQuery := `
 		INSERT INTO sighting_listing (
 			listing_owner, is_found, pet_name, pet_id, gender, breed, color,
-			animal_type, description, date_spotted, spotted_location, created_at
+			animal_type, description, image_urls, date_spotted, spotted_location, created_at
 		) VALUES (
-			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
+			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13
 		) RETURNING id
 	`
 
@@ -396,6 +404,7 @@ func handleCreate(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 		req.Color,
 		req.AnimalType,
 		req.Description,
+		req.ImageURLs,
 		dateSpotted,
 		locationID,
 		time.Now(),
@@ -549,6 +558,16 @@ func handleUpdate(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 			args = append(args, time.Now())
 			argPos++
 		}
+	}
+	if req.ImageURLs != nil {
+		if len(req.ImageURLs) > 4 {
+			return generic.Response(http.StatusBadRequest, generic.Json{
+				"error": "maximum of 4 images allowed",
+			})
+		}
+		updateFields = append(updateFields, "image_urls=$"+strconv.Itoa(argPos))
+		args = append(args, req.ImageURLs)
+		argPos++
 	}
 
 	// Location update

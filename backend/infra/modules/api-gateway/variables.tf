@@ -22,3 +22,11 @@ variable "lost_listing_invoke_arn" {
     type        = string
     description = "The invoke ARN of the Lambda function for lost-listing"
 }
+variable "image_upload_function_name" {
+    type        = string
+    description = "The function name of the Lambda function for image-upload"
+}
+variable "image_upload_invoke_arn" {
+    type        = string
+    description = "The invoke ARN of the Lambda function for image-upload"
+}

@@ -43,3 +43,18 @@ module "lost-listing-lambda" {
     }
 
 }
+
+module "image-upload-lambda" {
+
+    source = "./template"
+    function_name = "image-upload"
+    actions = ["s3:PutObject", "s3:GetObject", "s3:PutObjectAcl"]
+    resources = ["arn:aws:s3:::${var.s3_bucket_name}/*"]
+    zip_dir_slice = "image-upload"
+
+    environment_variables = {
+        S3_BUCKET_NAME          = var.s3_bucket_name
+        JWT_SECRET              = var.jwt_secret
+    }
+
+}

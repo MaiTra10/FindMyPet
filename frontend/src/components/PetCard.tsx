@@ -62,20 +62,27 @@ export function PetCard({ pet, onToggleFollow }: PetCardProps) {
       <Link to={`/pet/${pet.id}`}>
         {/* Image */}
         <div className="relative h-48 overflow-hidden bg-muted">
-          {pet.imageUrl ? (
-            <ImageWithFallback
-              src={pet.imageUrl}
-              alt={pet.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              {(() => {
-                const IconComponent = getTypeIcon(pet.animalType);
-                return <IconComponent className="w-16 h-16 text-muted-foreground" />;
-              })()}
-            </div>
-          )}
+          {(() => {
+            // Use first image from imageUrls array if available, otherwise fall back to imageUrl
+            const imageUrl = (pet.imageUrls && pet.imageUrls.length > 0) 
+              ? pet.imageUrls[0] 
+              : pet.imageUrl;
+            
+            return imageUrl ? (
+              <ImageWithFallback
+                src={imageUrl}
+                alt={pet.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                {(() => {
+                  const IconComponent = getTypeIcon(pet.animalType);
+                  return <IconComponent className="w-16 h-16 text-muted-foreground" />;
+                })()}
+              </div>
+            );
+          })()}
 
           {/* Status Badge */}
           <div className="absolute top-3 right-3">

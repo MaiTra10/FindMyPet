@@ -10,3 +10,7 @@ variable "jwt_secret" {
     type        = string
     description = "JWT secret key"
 }
+variable "s3_bucket_name" {
+    type        = string
+    description = "S3 bucket name for image uploads"
+}
