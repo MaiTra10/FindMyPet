@@ -12,6 +12,7 @@ import { ReportPage } from "./pages/ReportPage";
 import { PetDetails } from "./pages/PetDetails";
 import { Profile } from "./pages/Profile";
 import { PetType } from "./types/pet";
+import { UserProvider } from "./components/UserContext";
 import logoImage from "figma:asset/2efd0e818f5722b9374e1fd5a951dc99b3656823.png";
 import "./styles/globals.css";
 
@@ -22,7 +23,7 @@ function AppContent() {
   useEffect(() => {
     // Check if user has seen the welcome modal
     const hasSeenWelcome = localStorage.getItem("findmypet_welcome_seen");
-    
+
     // Show welcome modal if not seen before
     if (!hasSeenWelcome) {
       // Small delay to let the page load
@@ -43,25 +44,25 @@ function AppContent() {
         whileHover={{ scale: 1.02 }}
         className="fixed left-6 top-6 z-50 w-24 h-24 rounded-2xl overflow-hidden bg-white shadow-2xl flex-shrink-0"
       >
-        <img 
-          src={logoImage} 
-          alt="FindMyPet Logo" 
+        <img
+          src={logoImage}
+          alt="FindMyPet Logo"
           className="w-full h-full object-cover"
         />
       </motion.div>
 
       {/* Auth Button - Sign In / User Menu */}
-      <AuthButton />
+      <UserProvider><AuthButton /></UserProvider>
 
       {/* Welcome Modal */}
-      <WelcomeModal 
-        isOpen={showWelcome} 
-        onClose={() => setShowWelcome(false)} 
+      <WelcomeModal
+        isOpen={showWelcome}
+        onClose={() => setShowWelcome(false)}
       />
 
-      <Navbar 
-        selectedPetType={selectedPetType} 
-        onPetTypeChange={setSelectedPetType} 
+      <Navbar
+        selectedPetType={selectedPetType}
+        onPetTypeChange={setSelectedPetType}
       />
       <Routes>
         <Route path="/" element={<Listings selectedPetType={selectedPetType} />} />
@@ -69,7 +70,7 @@ function AppContent() {
         <Route path="/followed" element={<Followed />} />
         <Route path="/report" element={<ReportPage />} />
         <Route path="/pet/:id" element={<PetDetails />} />
-        <Route path="/profile" element={<Profile />} />
+        <Route path="/profile" element={<UserProvider><Profile /></UserProvider>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster />

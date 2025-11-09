@@ -1,17 +1,54 @@
 import { motion, AnimatePresence } from "motion/react";
 import { X, Shield, CheckCircle2, UserCircle2 } from "lucide-react";
 import { Button } from "./ui/button";
+import { GoogleLogin } from "@react-oauth/google";
+import { jwtDecode } from "jwt-decode"
+import { useNavigate } from "react-router-dom";
+import { UserType } from "./AuthButton";
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onLoginSuccess: (user: UserType) => void; // function that takes a UserType
 }
 
-export function LoginModal({ isOpen, onClose }: LoginModalProps) {
-  const handleLogin = async () => {
-    // TODO: Add your login logic here
-    console.log("Login button clicked - implement your auth logic");
-  };
+export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps) {
+  const navigate = useNavigate();
+
+  async function loginWithGoogle(googleCredential): Promise<UserType | null> {
+    try {
+      const response = await fetch(
+        "https://hw36ag81i6.execute-api.us-west-2.amazonaws.com/test/google-log-in",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: googleCredential }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.token) {
+        console.log("Login successful!");
+
+        // Decode the JWT to extract user info
+        const decoded: any = jwtDecode(data.token);
+        const user: UserType = {
+          id: decoded.sub, // standard JWT subject
+          name: decoded.name,
+          email: decoded.email,
+          picture: decoded.picture,
+        };
+        return user;
+      } else {
+        console.error("Login failed:", data.message || data.error);
+        return null;
+      }
+    } catch (error) {
+      console.error("Network or other error:", error);
+      return null;
+    }
+  }
 
   if (!isOpen) return null;
 
@@ -83,13 +120,26 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
             {/* Login Button */}
             <div className="space-y-4">
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
+                {/* <Button
                   onClick={handleLogin}
                   className="w-full h-14 bg-gradient-to-br from-primary to-accent text-white hover:from-primary/90 hover:to-accent/90 transition-all shadow-lg text-base"
                 >
                   <UserCircle2 className="w-6 h-6 mr-2" />
                   Sign In
-                </Button>
+                </Button> */}
+                <GoogleLogin
+                  onSuccess={async (credentialResponse) => {
+                    const token = credentialResponse.credential;
+                    const user = await loginWithGoogle(token); // returns UserType or null
+                    if (user) {
+                      onLoginSuccess(user); // update parent state
+                      navigate("/");
+                      onClose();
+                    }
+                  }}
+                  onError={() => console.log("Login Failed")}
+                  auto_select={true}
+                />
               </motion.div>
             </div>
 
