@@ -13,3 +13,33 @@ module "google-log-in-lambda" {
     }
 
 }
+
+module "sightings-listing-lambda" {
+
+    source = "./template"
+    function_name = "sighting-listing"
+    actions = ["*"]
+    resources = ["*"]
+    zip_dir_slice = "sighting-listing"
+
+    environment_variables = {
+        DATABASE_URL            = var.database_url
+        JWT_SECRET              = var.jwt_secret
+    }
+
+}
+
+module "lost-listing-lambda" {
+
+    source = "./template"
+    function_name = "lost-listing"
+    actions = ["*"]
+    resources = ["*"]
+    zip_dir_slice = "lost-listing"
+
+    environment_variables = {
+        DATABASE_URL            = var.database_url
+        JWT_SECRET              = var.jwt_secret
+    }
+
+}
