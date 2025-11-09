@@ -16,10 +16,10 @@ export interface UserType {
 export function AuthButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const { user, setUser } = useUser();
+  const { authUser, setAuthUser } = useUser();
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const isAuthenticated = !!user; // true if user object exists
+  const isAuthenticated = !!authUser; // true if user object exists
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -37,7 +37,7 @@ export function AuthButton() {
   }, [isOpen]);
 
   const handleLogout = () => {
-    setUser(null); // automatically clears localStorage
+    setAuthUser(null); // automatically clears localStorage
     setIsOpen(false);
     navigate("/");
   };
@@ -62,8 +62,8 @@ export function AuthButton() {
         <LoginModal
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}
-          onLoginSuccess={(user) => {
-            setUser(user); // UserContext handles saving to localStorage
+          onLoginSuccess={(authUser) => {
+            setAuthUser(authUser);
             setShowLoginModal(false);
           }}
         />
@@ -72,8 +72,8 @@ export function AuthButton() {
   }
 
   // If authenticated, show user menu
-  const initials = user.name
-    ? user.name
+  const initials = authUser.user.name
+    ? authUser.user.name
       .split(" ")
       .map((n) => n[0])
       .join("")
@@ -93,15 +93,15 @@ export function AuthButton() {
         className="flex items-center gap-3 px-3 py-2 bg-card/80 backdrop-blur-xl rounded-full shadow-lg border border-border hover:shadow-xl transition-shadow"
       >
         <Avatar className="h-9 w-9">
-          <AvatarImage src={user.picture} alt={user.name || "User"} />
+          <AvatarImage src={authUser.user.picture} alt={authUser.user.name || "User"} />
           <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm">
             {initials}
           </AvatarFallback>
         </Avatar>
         <div className="text-left pr-1">
-          <p className="text-sm font-medium leading-none mb-0.5">{user.name || "User"}</p>
+          <p className="text-sm font-medium leading-none mb-0.5">{authUser.user.name || "User"}</p>
           <p className="text-xs text-muted-foreground leading-none">
-            {user.email || ""}
+            {authUser.user.email || ""}
           </p>
         </div>
         <ChevronDown

@@ -15,7 +15,14 @@ interface LoginModalProps {
 export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps) {
   const navigate = useNavigate();
 
-  async function loginWithGoogle(googleCredential): Promise<UserType | null> {
+  type LoginResult = {
+    user: UserType;
+    raw: string;
+  };
+
+  async function loginWithGoogle(
+    googleCredential: string
+  ): Promise<LoginResult | null> {
     try {
       const response = await fetch(
         "https://hw36ag81i6.execute-api.us-west-2.amazonaws.com/test/google-log-in",
@@ -29,17 +36,14 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
       const data = await response.json();
 
       if (response.ok && data.token) {
-        console.log("Login successful!");
-
-        // Decode the JWT to extract user info
         const decoded: any = jwtDecode(data.token);
         const user: UserType = {
-          id: decoded.sub, // standard JWT subject
+          id: decoded.sub,
           name: decoded.name,
           email: decoded.email,
           picture: decoded.picture,
         };
-        return user;
+        return { user, raw: data.token };
       } else {
         console.error("Login failed:", data.message || data.error);
         return null;
@@ -130,9 +134,9 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
                 <GoogleLogin
                   onSuccess={async (credentialResponse) => {
                     const token = credentialResponse.credential;
-                    const user = await loginWithGoogle(token); // returns UserType or null
-                    if (user) {
-                      onLoginSuccess(user); // update parent state
+                    const result = await loginWithGoogle(token);
+                    if (result) {
+                      onLoginSuccess(result);
                       navigate("/");
                       onClose();
                     }

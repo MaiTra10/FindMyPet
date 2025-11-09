@@ -11,7 +11,7 @@ import { Button } from "./ui/button";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { LocationPicker } from "./LocationPicker";
-import { ImageUpload } from "./ImageUpload";
+import { useUser } from "../components/UserContext";
 
 export function LostPetForm() {
   const [date, setDate] = useState<Date>();
@@ -20,51 +20,59 @@ export function LostPetForm() {
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [location, setLocation] = useState("");
   const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const { authUser } = useUser();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     const formData = new FormData(e.target as HTMLFormElement);
-    
+
+    // Convert fields into expected JSON format
     const petData = {
       name: formData.get("name") as string,
       animalType: formData.get("animalType") as string,
-      gender: formData.get("gender") as string,
-      breed: formData.get("breed") as string,
-      color: formData.get("color") as string,
-      age: formData.get("age") as string,
-      dateLost: date!,
-      location: formData.get("location") as string,
+      gender: formData.get("gender") ? (formData.get("gender") as string) : undefined,
+      breed: formData.get("breed") ? [(formData.get("breed") as string)] : [],
+      color: formData.get("color") ? [(formData.get("color") as string)] : [],
+      age: formData.get("age") ? (formData.get("age") as string) : undefined,
+      dateLost: date ? date.toISOString() : new Date().toISOString(),
+      location: location,
+      postalCode: formData.get("postalCode") ? (formData.get("postalCode") as string) : undefined,
       locationCoords: locationCoords,
+      city: formData.get("city") as string,
+      provinceOrState: formData.get("provinceOrState") as string,
+      country: formData.get("country") as string,
       description: description,
-      imageUrls: imageUrls,
-      contact: formData.get("contact") as string,
     };
 
-    // TODO: Replace with your API call
     try {
-      // Example API call:
-      // const response = await fetch('YOUR_API_ENDPOINT/pets', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ ...petData, type: 'Lost' }),
-      // });
-      // 
-      // if (response.ok) {
-      //   toast.success("Lost pet report submitted successfully!");
-      //   (e.target as HTMLFormElement).reset();
-      //   setDate(undefined);
-      //   setDescription("");
-      // } else {
-      //   throw new Error('Failed to submit');
-      // }
+      const response = await fetch(`https://hw36ag81i6.execute-api.us-west-2.amazonaws.com/test/lost-listing`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${authUser?.raw}`,
+        },
+        body: JSON.stringify(petData),
+      });
 
-      console.log("Lost Pet Form Data:", petData);
-      toast.info("TODO: Connect to your API to submit this form");
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        console.error("Error response:", err);
+        throw new Error(err.error || "Failed to submit lost pet report");
+      }
+
+      const result = await response.json();
+      console.log("Lost Pet Created:", result);
+
+      toast.success("Lost pet report submitted successfully!");
+      (e.target as HTMLFormElement).reset();
+      setDate(undefined);
+      setDescription("");
+      setLocation("");
+      setLocationCoords(null);
     } catch (error) {
-      console.error('Error submitting lost pet form:', error);
+      console.error("Error submitting lost pet form:", error);
       toast.error("Failed to submit report. Please try again.");
     } finally {
       setIsSubmitting(false);
