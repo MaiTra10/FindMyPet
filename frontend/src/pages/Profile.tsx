@@ -1,14 +1,15 @@
 import { motion } from "motion/react";
+import { useAuth } from "../contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
 import { Card } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
-import {
-  Award,
-  Heart,
-  MapPin,
-  Clock,
-  TrendingUp,
+import { 
+  Award, 
+  Heart, 
+  MapPin, 
+  Clock, 
+  TrendingUp, 
   Users,
   CheckCircle2,
   Star,
@@ -17,9 +18,11 @@ import {
   Zap
 } from "lucide-react";
 import { PetCard } from "../components/PetCard";
-import { PetListing } from "../types/pet";
+import { mockPets } from "../utils/mockData";
+import { getPetListings } from "../utils/localStorage";
 import { useState, useEffect } from "react";
-import { useUser } from "../components/UserContext";
+import { PetListing } from "../types/pet";
+
 interface UserBadge {
   id: string;
   name: string;
@@ -41,47 +44,24 @@ interface UserStats {
 }
 
 export function Profile() {
-  const { authUser } = useUser();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"listings" | "badges" | "stats">("listings");
   const [userListings, setUserListings] = useState<PetListing[]>([]);
-  const [isLoadingListings, setIsLoadingListings] = useState(false);
 
   useEffect(() => {
-    if (!authUser) return;
-    // fetch user listings
-  }, [authUser]);
+    if (user) {
+      const storedPets = getPetListings();
+      const combinedPets = [...storedPets, ...mockPets];
+      // Filter to show only listings created by this user
+      const filtered = combinedPets.filter(pet => pet.createdBy === user.email);
+      setUserListings(filtered);
+    }
+  }, [user]);
 
-  // TODO: Replace with your API call
-  useEffect(() => {
-    const fetchUserListings = async () => {
-      if (!authUser) return;
-
-      setIsLoadingListings(true);
-      try {
-        // Example API call structure:
-        // const response = await fetch(`YOUR_API_ENDPOINT/users/${user.id}/listings`);
-        // const data = await response.json();
-        // setUserListings(data);
-
-        // For now, listings will be empty until you implement your API
-        setUserListings([]);
-      } catch (error) {
-        console.error('Error fetching user listings:', error);
-      } finally {
-        setIsLoadingListings(false);
-      }
-    };
-
-    fetchUserListings();
-  }, [authUser]);
-
-  if (!authUser) {
+  if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center ml-32">
-        <div className="text-center">
-          <h2 className="text-foreground mb-2">Not Signed In</h2>
-          <p className="text-muted-foreground">Please sign in to view your profile</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Please sign in to view your profile</p>
       </div>
     );
   }
@@ -174,7 +154,7 @@ export function Profile() {
     },
   ];
 
-  const initials = authUser.user.name
+  const initials = user.name
     .split(" ")
     .map((n) => n[0])
     .join("")
@@ -201,7 +181,7 @@ export function Profile() {
                 className="flex-shrink-0"
               >
                 <Avatar className="h-24 w-24 border-4 border-background shadow-xl">
-                  <AvatarImage src={authUser.user.picture} alt={authUser.user.name} />
+                  <AvatarImage src={user.picture} alt={user.name} />
                   <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-2xl">
                     {initials}
                   </AvatarFallback>
@@ -211,7 +191,7 @@ export function Profile() {
               {/* User Info */}
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-foreground">{authUser.user.name}</h1>
+                  <h1 className="text-foreground">{user.name}</h1>
                   {userStats.peopleHelped >= 5 && (
                     <Badge className="bg-primary/10 text-primary border-primary/30 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" />
@@ -219,8 +199,8 @@ export function Profile() {
                     </Badge>
                   )}
                 </div>
-                <p className="text-muted-foreground mb-4">{authUser.user.email}</p>
-
+                <p className="text-muted-foreground mb-4">{user.email}</p>
+                
                 {/* Quick Stats */}
                 <div className="flex flex-wrap gap-4">
                   <div className="flex items-center gap-2 px-3 py-2 bg-background/60 rounded-xl relative">
@@ -268,10 +248,11 @@ export function Profile() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setActiveTab("listings")}
-            className={`px-6 py-3 rounded-xl transition-all ${activeTab === "listings"
-              ? "bg-gradient-to-br from-primary to-accent text-white shadow-lg"
-              : "bg-card hover:bg-muted"
-              }`}
+            className={`px-6 py-3 rounded-xl transition-all ${
+              activeTab === "listings"
+                ? "bg-gradient-to-br from-primary to-accent text-white shadow-lg"
+                : "bg-card hover:bg-muted"
+            }`}
           >
             My Listings ({userStats.activeListings})
           </motion.button>
@@ -279,10 +260,11 @@ export function Profile() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setActiveTab("badges")}
-            className={`px-6 py-3 rounded-xl transition-all ${activeTab === "badges"
-              ? "bg-gradient-to-br from-primary to-accent text-white shadow-lg"
-              : "bg-card hover:bg-muted"
-              }`}
+            className={`px-6 py-3 rounded-xl transition-all ${
+              activeTab === "badges"
+                ? "bg-gradient-to-br from-primary to-accent text-white shadow-lg"
+                : "bg-card hover:bg-muted"
+            }`}
           >
             Badges ({earnedBadges.length})
           </motion.button>
@@ -290,10 +272,11 @@ export function Profile() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setActiveTab("stats")}
-            className={`px-6 py-3 rounded-xl transition-all ${activeTab === "stats"
-              ? "bg-gradient-to-br from-primary to-accent text-white shadow-lg"
-              : "bg-card hover:bg-muted"
-              }`}
+            className={`px-6 py-3 rounded-xl transition-all ${
+              activeTab === "stats"
+                ? "bg-gradient-to-br from-primary to-accent text-white shadow-lg"
+                : "bg-card hover:bg-muted"
+            }`}
           >
             Stats & Impact
           </motion.button>
@@ -312,8 +295,8 @@ export function Profile() {
               {userListings.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {userListings.map((pet) => (
-                    <PetCard
-                      key={pet.id}
+                    <PetCard 
+                      key={pet.id} 
                       pet={pet}
                       onToggleFollow={() => {
                         // Handle follow toggle
@@ -379,10 +362,10 @@ export function Profile() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {inProgressBadges.map((badge) => {
                       const Icon = badge.icon;
-                      const progressPercent = badge.progress && badge.requirement
-                        ? (badge.progress / badge.requirement) * 100
+                      const progressPercent = badge.progress && badge.requirement 
+                        ? (badge.progress / badge.requirement) * 100 
                         : 0;
-
+                      
                       return (
                         <motion.div
                           key={badge.id}
@@ -503,7 +486,7 @@ export function Profile() {
                     <div>
                       <h3 className="text-foreground mb-2">Verified Helper Status</h3>
                       <p className="text-sm text-muted-foreground mb-3">
-                        Help 5 people reunite with their pets to unlock the Verified Helper badge.
+                        Help 5 people reunite with their pets to unlock the Verified Helper badge. 
                         You're currently at {userStats.peopleHelped}/5. Keep reporting sightings and helping the community!
                       </p>
                       <Progress value={(userStats.peopleHelped / 5) * 100} className="h-2" />

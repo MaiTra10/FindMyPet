@@ -5,63 +5,153 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Calendar } from "./ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Button } from "./ui/button";
-import { format } from "date-fns";
 import { toast } from "sonner";
+import { useAuth } from "../contexts/AuthContext";
+import { savePetListing } from "../utils/localStorage";
 import { LocationPicker } from "./LocationPicker";
+import { PetListing } from "../types/pet";
 
 export function SightingForm() {
-  const [date, setDate] = useState<Date>();
+  const [dateSpotted, setDateSpotted] = useState("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [location, setLocation] = useState("");
   const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [animalType, setAnimalType] = useState("");
+  const [gender, setGender] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const { user } = useAuth();
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image size must be less than 10MB");
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    setImageFile(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast.error("Please sign in to submit a report");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!animalType) {
+      toast.error("Please select an animal type");
+      return;
+    }
+
+    if (!dateSpotted.trim()) {
+      toast.error("Please enter the date spotted");
+      return;
+    }
+
+    if (!location.trim()) {
+      toast.error("Please enter the location where pet was spotted");
+      return;
+    }
+
+    if (!description.trim()) {
+      toast.error("Please provide a description");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const formData = new FormData(e.target as HTMLFormElement);
     
-    const sightingData = {
-      animalType: formData.get("animalType") as string,
-      color: formData.get("color") as string,
-      gender: formData.get("gender") as string,
-      breed: formData.get("breed") as string,
-      age: formData.get("age") as string,
-      dateSpotted: date!,
-      location: formData.get("location") as string,
-      locationCoords: locationCoords,
-      description: description,
-      linkedPetId: formData.get("linkedId") as string,
-      contact: formData.get("contact") as string,
-    };
-
-    // TODO: Replace with your API call
     try {
-      // Example API call:
-      // const response = await fetch('YOUR_API_ENDPOINT/sightings', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ ...sightingData, type: 'Sighting' }),
-      // });
-      // 
-      // if (response.ok) {
-      //   toast.success("Sighting report submitted successfully!");
-      //   (e.target as HTMLFormElement).reset();
-      //   setDate(undefined);
-      //   setDescription("");
-      // } else {
-      //   throw new Error('Failed to submit');
-      // }
+      // Create new sighting listing
+      // Parse the date - try to create a valid Date object
+      let reportedDate = new Date();
+      if (dateSpotted.trim()) {
+        const parsedDate = new Date(dateSpotted);
+        if (!isNaN(parsedDate.getTime())) {
+          reportedDate = parsedDate;
+        }
+      }
 
-      console.log("Sighting Form Data:", sightingData);
-      toast.info("TODO: Connect to your API to submit this form");
+      const newListing: PetListing = {
+        id: `listing_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        type: "Sighting",
+        name: "Unknown",
+        animalType: animalType as any,
+        gender: (gender || "Unknown") as any,
+        breed: formData.get("breed") as string || undefined,
+        color: formData.get("color") as string,
+        age: formData.get("age") as string || undefined,
+        dateReported: reportedDate,
+        location: {
+          address: location,
+          lat: locationCoords?.lat || 45.5152,
+          lng: locationCoords?.lng || -122.6784,
+        },
+        status: "Active",
+        imageUrl: imagePreview || undefined,
+        description: description,
+        contactInfo: formData.get("contact") as string || undefined,
+        isFollowed: false,
+        createdBy: user.email,
+        postedBy: {
+          name: user.name || "Anonymous",
+          avatar: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.name || "user")}`,
+          joinedDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          listingsCount: 1,
+          verificationsCount: 0,
+          activeListings: 0,
+          sightingsReported: 1,
+          followedPets: 0,
+          daysActive: 30,
+          badges: [],
+        },
+      };
+
+      // Save to localStorage
+      savePetListing(newListing);
+      
+      toast.success("Sighting report submitted successfully! Thank you for helping reunite pets with their families!");
+      
+      // Reset form
+      (e.target as HTMLFormElement).reset();
+      setDateSpotted("");
+      setDescription("");
+      setLocation("");
+      setLocationCoords(null);
+      setAnimalType("");
+      setGender("");
+      setImagePreview(null);
+      setImageFile(null);
+      
     } catch (error) {
-      console.error('Error submitting sighting form:', error);
+      console.error("Error submitting sighting form:", error);
       toast.error("Failed to submit report. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -80,25 +170,51 @@ export function SightingForm() {
       {/* Photo Upload */}
       <div>
         <Label>Photo of Pet (if available)</Label>
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="mt-2 border-2 border-dashed border-border rounded-2xl p-8 text-center cursor-pointer hover:border-primary/50 transition-all"
-        >
-          <Camera className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground mb-2">
-            Click to upload or drag and drop
-          </p>
-          <p className="text-xs text-muted-foreground">
-            PNG, JPG up to 10MB
-          </p>
-        </motion.div>
+        {imagePreview ? (
+          <div className="mt-2 relative">
+            <img
+              src={imagePreview}
+              alt="Preview"
+              className="w-full h-64 object-cover rounded-2xl"
+            />
+            <button
+              type="button"
+              onClick={handleRemoveImage}
+              className="absolute top-3 right-3 bg-destructive text-white p-2 rounded-full hover:bg-destructive/90 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <label htmlFor="sighting-photo-upload" className="block">
+            <input
+              id="sighting-photo-upload"
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="hidden"
+            />
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              className="mt-2 border-2 border-dashed border-border rounded-2xl p-8 text-center cursor-pointer hover:border-primary/50 transition-all"
+            >
+              <Camera className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground mb-2">
+                Click to upload or drag and drop
+              </p>
+              <p className="text-xs text-muted-foreground">
+                PNG, JPG up to 10MB
+              </p>
+            </motion.div>
+          </label>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Animal Type */}
         <div>
           <Label htmlFor="animalType">Animal Type *</Label>
-          <Select name="animalType" required>
+          <Select value={animalType} onValueChange={setAnimalType}>
             <SelectTrigger className="mt-2">
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
@@ -127,7 +243,7 @@ export function SightingForm() {
         {/* Gender (if known) */}
         <div>
           <Label htmlFor="gender">Gender (if known)</Label>
-          <Select name="gender">
+          <Select value={gender} onValueChange={setGender}>
             <SelectTrigger className="mt-2">
               <SelectValue placeholder="Select gender" />
             </SelectTrigger>
@@ -162,27 +278,22 @@ export function SightingForm() {
         </div>
       </div>
 
-      {/* Date Found */}
+      {/* Date Spotted */}
       <div>
-        <Label>Date Spotted *</Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full justify-start text-left mt-2"
-            >
-              {date ? format(date, "PPP") : <span>Pick a date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={setDate}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+        <Label htmlFor="dateSpotted">Date Spotted *</Label>
+        <Input
+          id="dateSpotted"
+          name="dateSpotted"
+          type="date"
+          required
+          className="mt-2"
+          value={dateSpotted}
+          onChange={(e) => setDateSpotted(e.target.value)}
+          max={new Date().toISOString().split('T')[0]}
+        />
+        <p className="text-xs text-muted-foreground mt-2">
+          Select the date when you spotted the pet
+        </p>
       </div>
 
       {/* Location */}

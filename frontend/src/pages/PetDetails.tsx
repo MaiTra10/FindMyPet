@@ -2,7 +2,8 @@ import { motion } from "motion/react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, MapPin, Calendar, Heart, Share2, AlertCircle, Dog, Cat, Rabbit, Bird, PawPrint, CheckCircle2, Star, Trophy, Users, Zap, Award } from "lucide-react";
 import { useState, useEffect } from "react";
-import { PetListing } from "../types/pet";
+import { mockPets } from "../utils/mockData";
+import { getPetListings } from "../utils/localStorage";
 import { Badge } from "../components/ui/badge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { LucideIcon } from "lucide-react";
@@ -10,48 +11,24 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { Progress } from "../components/ui/progress";
 import * as LucideIcons from "lucide-react";
+import { PetListing } from "../types/pet";
 
 export function PetDetails() {
   const { id } = useParams();
-  const [pet, setPet] = useState<PetListing | null>(null);
+  const [allPets, setAllPets] = useState<PetListing[]>([]);
+  const [pet, setPet] = useState<PetListing | undefined>(undefined);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // TODO: Replace with your API call
+  // Load all pets from both localStorage and mockData
   useEffect(() => {
-    const fetchPetDetails = async () => {
-      setIsLoading(true);
-      try {
-        // Example API call structure:
-        // const response = await fetch(`YOUR_API_ENDPOINT/pets/${id}`);
-        // const data = await response.json();
-        // setPet(data);
-        // setIsFollowing(data.isFollowed || false);
-        
-        // For now, pet will be null until you implement your API
-        setPet(null);
-      } catch (error) {
-        console.error('Error fetching pet details:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (id) {
-      fetchPetDetails();
-    }
+    const storedPets = getPetListings();
+    const combinedPets = [...storedPets, ...mockPets];
+    setAllPets(combinedPets);
+    
+    const foundPet = combinedPets.find((p) => p.id === id);
+    setPet(foundPet);
+    setIsFollowing(foundPet?.isFollowed || false);
   }, [id]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen ml-32 p-8 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-4xl mb-4">⏳</div>
-          <p className="text-muted-foreground">Loading pet details...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!pet) {
     return (
@@ -59,7 +36,7 @@ export function PetDetails() {
         <div className="text-center">
           <h2 className="text-foreground mb-2">Pet Not Found</h2>
           <p className="text-muted-foreground mb-6">
-            The pet you're looking for doesn't exist or hasn't been loaded yet
+            The pet you're looking for doesn't exist
           </p>
           <Link
             to="/"
@@ -360,7 +337,7 @@ export function PetDetails() {
                   <p className="text-sm text-muted-foreground mb-1">
                     Date Reported
                   </p>
-                  <p className="text-foreground">{formatDate(pet.dateReported)}</p>
+                  <p className="text-foreground">{formatDate(pet.dateReported instanceof Date ? pet.dateReported : new Date(pet.dateReported))}</p>
                 </div>
               </div>
             </div>

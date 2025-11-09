@@ -8,10 +8,7 @@ import { APIProvider, Map, Marker } from "@vis.gl/react-google-maps";
 
 // IMPORTANT: Replace with your actual Google Maps API key
 // Get one at: https://developers.google.com/maps/documentation/javascript/get-api-key
-// Or set VITE_GOOGLE_MAPS_API_KEY in your .env file
-const GOOGLE_MAPS_API_KEY = 
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_MAPS_API_KEY) || 
-  "YOUR_GOOGLE_MAPS_API_KEY";
+const GOOGLE_MAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY";
 
 interface LocationPickerProps {
   isOpen: boolean;

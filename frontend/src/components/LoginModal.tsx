@@ -1,58 +1,96 @@
 import { motion, AnimatePresence } from "motion/react";
 import { X, Shield, CheckCircle2, UserCircle2 } from "lucide-react";
+import { useGoogleLogin } from "@react-oauth/google";
+import { useAuth } from "../contexts/AuthContext";
+import { toast } from "sonner";
 import { Button } from "./ui/button";
-import { GoogleLogin } from "@react-oauth/google";
-import { jwtDecode } from "jwt-decode"
-import { useNavigate } from "react-router-dom";
-import { UserType } from "./AuthButton";
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess: (user: UserType) => void; // function that takes a UserType
 }
 
-export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps) {
-  const navigate = useNavigate();
+export function LoginModal({ isOpen, onClose }: LoginModalProps) {
+  const { login, useMockAuth } = useAuth();
 
-  type LoginResult = {
-    user: UserType;
-    raw: string;
+  const handleGuestLogin = async () => {
+    try {
+      // Create a guest/demo user
+      const guestUser = {
+        id: "guest-user-123",
+        email: "guest@findmypet.com",
+        name: "Guest User",
+        picture: "https://api.dicebear.com/7.x/avataaars/svg?seed=GuestUser",
+      };
+
+      await login("guest-token-123", guestUser);
+      toast.success("Signed in as Guest!");
+      onClose();
+    } catch (error) {
+      console.error("Guest login error:", error);
+      toast.error("Failed to sign in. Please try again.");
+    }
   };
 
-  async function loginWithGoogle(
-    googleCredential: string
-  ): Promise<LoginResult | null> {
-    try {
-      const response = await fetch(
-        "https://hw36ag81i6.execute-api.us-west-2.amazonaws.com/test/google-log-in",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: googleCredential }),
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        // Fetch user info from Google
+        const userInfoResponse = await fetch(
+          "https://www.googleapis.com/oauth2/v3/userinfo",
+          {
+            headers: {
+              Authorization: `Bearer ${tokenResponse.access_token}`,
+            },
+          }
+        );
+
+        if (!userInfoResponse.ok) {
+          throw new Error("Failed to fetch user info");
         }
-      );
 
-      const data = await response.json();
+        const userInfo = await userInfoResponse.json();
 
-      if (response.ok && data.token) {
-        const decoded: any = jwtDecode(data.token);
-        const user: UserType = {
-          id: decoded.sub,
-          name: decoded.name,
-          email: decoded.email,
-          picture: decoded.picture,
+        // Create user object
+        const userData = {
+          id: userInfo.sub,
+          email: userInfo.email,
+          name: userInfo.name,
+          picture: userInfo.picture,
         };
-        return { user, raw: data.token };
-      } else {
-        console.error("Login failed:", data.message || data.error);
-        return null;
+
+        console.log("Google user data received:", userData);
+        
+        try {
+          await login(tokenResponse.access_token, userData);
+          console.log("Login function completed");
+          
+          // Verify the user was saved
+          const savedUser = localStorage.getItem("findmypet_user");
+          console.log("User saved to localStorage:", savedUser);
+          
+          toast.success(`Welcome back, ${userInfo.name}!`);
+          
+          // Close modal and force a small delay for state propagation
+          setTimeout(() => {
+            onClose();
+            // Force a re-render by checking the state
+            console.log("Modal closed, login complete");
+          }, 200);
+        } catch (loginError) {
+          console.error("Login function failed:", loginError);
+          throw loginError;
+        }
+      } catch (error) {
+        console.error("Google login error:", error);
+        toast.error("Failed to sign in with Google. Please try again.");
       }
-    } catch (error) {
-      console.error("Network or other error:", error);
-      return null;
-    }
-  }
+    },
+    onError: (error) => {
+      console.error("Google login error:", error);
+      toast.error("Failed to sign in with Google.");
+    },
+  });
 
   if (!isOpen) return null;
 
@@ -121,30 +159,48 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
               </div>
             </div>
 
-            {/* Login Button */}
+            {/* Login Buttons */}
             <div className="space-y-4">
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                {/* <Button
-                  onClick={handleLogin}
-                  className="w-full h-14 bg-gradient-to-br from-primary to-accent text-white hover:from-primary/90 hover:to-accent/90 transition-all shadow-lg text-base"
-                >
-                  <UserCircle2 className="w-6 h-6 mr-2" />
-                  Sign In
-                </Button> */}
-                <GoogleLogin
-                  onSuccess={async (credentialResponse) => {
-                    const token = credentialResponse.credential;
-                    const result = await loginWithGoogle(token);
-                    if (result) {
-                      onLoginSuccess(result);
-                      navigate("/");
-                      onClose();
-                    }
-                  }}
-                  onError={() => console.log("Login Failed")}
-                  auto_select={true}
-                />
-              </motion.div>
+              {useMockAuth ? (
+                // Mock/Guest Mode
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    onClick={handleGuestLogin}
+                    className="w-full h-14 bg-gradient-to-br from-primary to-accent text-white hover:from-primary/90 hover:to-accent/90 transition-all shadow-lg text-base"
+                  >
+                    <UserCircle2 className="w-6 h-6 mr-2" />
+                    Continue as Guest
+                  </Button>
+                </motion.div>
+              ) : (
+                // Real Google OAuth
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    onClick={() => handleGoogleLogin()}
+                    className="w-full h-14 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 transition-all shadow-lg text-base"
+                  >
+                    <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24">
+                      <path
+                        fill="#4285F4"
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                      />
+                    </svg>
+                    Sign in with Google
+                  </Button>
+                </motion.div>
+              )}
             </div>
 
             {/* Notice */}
@@ -152,10 +208,12 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
               <Shield className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-sm font-medium text-foreground mb-1">
-                  Secure Sign In
+                  {useMockAuth ? "Guest Mode" : "Secure Sign In"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Sign in securely with your account. We only access your basic profile information.
+                  {useMockAuth
+                    ? "Explore all features with a guest account. Your data will be saved locally. You can sign out anytime from your profile."
+                    : "Sign in securely with your Google account. We only access your basic profile information."}
                 </p>
               </div>
             </div>

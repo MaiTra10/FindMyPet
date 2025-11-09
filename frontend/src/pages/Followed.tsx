@@ -3,32 +3,17 @@ import { Heart, Bell } from "lucide-react";
 import { useState, useEffect } from "react";
 import { PetCard } from "../components/PetCard";
 import { PageHeader } from "../components/PageHeader";
+import { mockPets } from "../utils/mockData";
+import { getPetListings } from "../utils/localStorage";
 import { PetListing } from "../types/pet";
 
 export function Followed() {
   const [followedPets, setFollowedPets] = useState<PetListing[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
-  // TODO: Replace with your API call
   useEffect(() => {
-    const fetchFollowedPets = async () => {
-      setIsLoading(true);
-      try {
-        // Example API call structure:
-        // const response = await fetch('YOUR_API_ENDPOINT/followed-pets');
-        // const data = await response.json();
-        // setFollowedPets(data);
-        
-        // For now, followed pets will be empty until you implement your API
-        setFollowedPets([]);
-      } catch (error) {
-        console.error('Error fetching followed pets:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchFollowedPets();
+    const storedPets = getPetListings();
+    const combinedPets = [...storedPets, ...mockPets];
+    setFollowedPets(combinedPets.filter((pet) => pet.isFollowed));
   }, []);
 
   const handleToggleFollow = (id: string) => {

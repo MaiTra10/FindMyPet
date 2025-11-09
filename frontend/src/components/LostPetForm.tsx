@@ -5,72 +5,146 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Calendar } from "./ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Button } from "./ui/button";
-import { format } from "date-fns";
 import { toast } from "sonner";
+import { useAuth } from "../contexts/AuthContext";
+import { savePetListing } from "../utils/localStorage";
 import { LocationPicker } from "./LocationPicker";
-import { useUser } from "../components/UserContext";
+import { PetListing } from "../types/pet";
 
 export function LostPetForm() {
-  const [date, setDate] = useState<Date>();
+  const [dateLost, setDateLost] = useState("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [location, setLocation] = useState("");
   const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const { authUser } = useUser();
+  const [animalType, setAnimalType] = useState("");
+  const [gender, setGender] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const { user } = useAuth();
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image size must be less than 10MB");
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    setImageFile(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast.error("Please sign in to submit a report");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!animalType) {
+      toast.error("Please select an animal type");
+      return;
+    }
+
+    if (!dateLost.trim()) {
+      toast.error("Please enter the date lost");
+      return;
+    }
+
+    if (!location.trim()) {
+      toast.error("Please enter the location where pet was lost");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const formData = new FormData(e.target as HTMLFormElement);
-
-    // Convert fields into expected JSON format
-    const petData = {
-      name: formData.get("name") as string,
-      animalType: formData.get("animalType") as string,
-      gender: formData.get("gender") ? (formData.get("gender") as string) : undefined,
-      breed: formData.get("breed") ? [(formData.get("breed") as string)] : [],
-      color: formData.get("color") ? [(formData.get("color") as string)] : [],
-      age: formData.get("age") ? (formData.get("age") as string) : undefined,
-      dateLost: date ? date.toISOString() : new Date().toISOString(),
-      location: location,
-      postalCode: formData.get("postalCode") ? (formData.get("postalCode") as string) : undefined,
-      locationCoords: locationCoords,
-      city: formData.get("city") as string,
-      provinceOrState: formData.get("provinceOrState") as string,
-      country: formData.get("country") as string,
-      description: description,
-    };
-
+    
     try {
-      const response = await fetch(`https://hw36ag81i6.execute-api.us-west-2.amazonaws.com/test/lost-listing`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${authUser?.raw}`,
-        },
-        body: JSON.stringify(petData),
-      });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        console.error("Error response:", err);
-        throw new Error(err.error || "Failed to submit lost pet report");
+      // Create new pet listing
+      // Parse the date - try to create a valid Date object
+      let reportedDate = new Date();
+      if (dateLost.trim()) {
+        const parsedDate = new Date(dateLost);
+        if (!isNaN(parsedDate.getTime())) {
+          reportedDate = parsedDate;
+        }
       }
 
-      const result = await response.json();
-      console.log("Lost Pet Created:", result);
+      const newListing: PetListing = {
+        id: `listing_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        type: "Lost",
+        name: formData.get("name") as string,
+        animalType: animalType as any,
+        gender: (gender || "Unknown") as any,
+        breed: formData.get("breed") as string || undefined,
+        color: formData.get("color") as string,
+        age: formData.get("age") as string || undefined,
+        dateReported: reportedDate,
+        location: {
+          address: location,
+          lat: locationCoords?.lat || 45.5152,
+          lng: locationCoords?.lng || -122.6784,
+        },
+        status: "Active",
+        imageUrl: imagePreview || undefined,
+        description: description,
+        contactInfo: formData.get("contact") as string,
+        isFollowed: false,
+        createdBy: user.email,
+        postedBy: {
+          name: user.name || "Anonymous",
+          avatar: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.name || "user")}`,
+          joinedDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          listingsCount: 1,
+          verificationsCount: 0,
+          activeListings: 1,
+          sightingsReported: 0,
+          followedPets: 0,
+          daysActive: 30,
+          badges: [],
+        },
+      };
 
-      toast.success("Lost pet report submitted successfully!");
+      // Save to localStorage
+      savePetListing(newListing);
+      
+      toast.success("Lost pet report submitted successfully! Your listing is now active and visible to the community.");
+      
+      // Reset form
       (e.target as HTMLFormElement).reset();
-      setDate(undefined);
+      setDateLost("");
       setDescription("");
       setLocation("");
       setLocationCoords(null);
+      setAnimalType("");
+      setGender("");
+      setImagePreview(null);
+      setImageFile(null);
+      
     } catch (error) {
       console.error("Error submitting lost pet form:", error);
       toast.error("Failed to submit report. Please try again.");
@@ -91,18 +165,44 @@ export function LostPetForm() {
       {/* Pet Photo Upload */}
       <div>
         <Label>Pet Photo</Label>
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="mt-2 border-2 border-dashed border-border rounded-2xl p-8 text-center cursor-pointer hover:border-primary/50 transition-all"
-        >
-          <Camera className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground mb-2">
-            Click to upload or drag and drop
-          </p>
-          <p className="text-xs text-muted-foreground">
-            PNG, JPG up to 10MB
-          </p>
-        </motion.div>
+        {imagePreview ? (
+          <div className="mt-2 relative">
+            <img
+              src={imagePreview}
+              alt="Preview"
+              className="w-full h-64 object-cover rounded-2xl"
+            />
+            <button
+              type="button"
+              onClick={handleRemoveImage}
+              className="absolute top-3 right-3 bg-destructive text-white p-2 rounded-full hover:bg-destructive/90 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <label htmlFor="photo-upload" className="block">
+            <input
+              id="photo-upload"
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="hidden"
+            />
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              className="mt-2 border-2 border-dashed border-border rounded-2xl p-8 text-center cursor-pointer hover:border-primary/50 transition-all"
+            >
+              <Camera className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground mb-2">
+                Click to upload or drag and drop
+              </p>
+              <p className="text-xs text-muted-foreground">
+                PNG, JPG up to 10MB
+              </p>
+            </motion.div>
+          </label>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -121,7 +221,7 @@ export function LostPetForm() {
         {/* Animal Type */}
         <div>
           <Label htmlFor="animalType">Animal Type *</Label>
-          <Select name="animalType" required>
+          <Select value={animalType} onValueChange={setAnimalType}>
             <SelectTrigger className="mt-2">
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
@@ -138,7 +238,7 @@ export function LostPetForm() {
         {/* Gender */}
         <div>
           <Label htmlFor="gender">Gender</Label>
-          <Select name="gender">
+          <Select value={gender} onValueChange={setGender}>
             <SelectTrigger className="mt-2">
               <SelectValue placeholder="Select gender" />
             </SelectTrigger>
@@ -187,25 +287,20 @@ export function LostPetForm() {
 
       {/* Date Lost */}
       <div>
-        <Label>Date Lost *</Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full justify-start text-left mt-2"
-            >
-              {date ? format(date, "PPP") : <span>Pick a date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={setDate}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+        <Label htmlFor="dateLost">Date Lost *</Label>
+        <Input
+          id="dateLost"
+          name="dateLost"
+          type="date"
+          required
+          className="mt-2"
+          value={dateLost}
+          onChange={(e) => setDateLost(e.target.value)}
+          max={new Date().toISOString().split('T')[0]}
+        />
+        <p className="text-xs text-muted-foreground mt-2">
+          Select the date when your pet was lost
+        </p>
       </div>
 
       {/* Location */}

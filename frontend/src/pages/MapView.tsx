@@ -1,6 +1,8 @@
 import { motion } from "motion/react";
 import { MapPin, Navigation, Dog, Cat, Rabbit, Bird, PawPrint, Layers } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
+import { mockPets } from "../utils/mockData";
+import { getPetListings } from "../utils/localStorage";
 import { PetListing } from "../types/pet";
 import { Badge } from "../components/ui/badge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -11,47 +13,28 @@ import { APIProvider, Map, Marker, InfoWindow } from "@vis.gl/react-google-maps"
 
 // IMPORTANT: Replace with your actual Google Maps API key
 // Get one at: https://developers.google.com/maps/documentation/javascript/get-api-key
-// Or set VITE_GOOGLE_MAPS_API_KEY in your .env file
-const GOOGLE_MAPS_API_KEY = 
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_MAPS_API_KEY) || 
-  "YOUR_GOOGLE_MAPS_API_KEY";
+const GOOGLE_MAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY";
 
 export function MapView() {
   const [selectedPet, setSelectedPet] = useState<PetListing | null>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 45.5152, lng: -122.6784 });
   const [zoom, setZoom] = useState(12);
   const [showOnlyActive, setShowOnlyActive] = useState(true);
-  const [pets, setPets] = useState<PetListing[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [allPets, setAllPets] = useState<PetListing[]>([]);
 
-  // TODO: Replace with your API call
+  // Load all pets from localStorage and mockData
   useEffect(() => {
-    const fetchPets = async () => {
-      setIsLoading(true);
-      try {
-        // Example API call structure:
-        // const response = await fetch('YOUR_API_ENDPOINT/pets');
-        // const data = await response.json();
-        // setPets(data);
-        
-        // For now, pets will be empty until you implement your API
-        setPets([]);
-      } catch (error) {
-        console.error('Error fetching pets:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchPets();
+    const storedPets = getPetListings();
+    const combinedPets = [...storedPets, ...mockPets];
+    setAllPets(combinedPets);
   }, []);
 
   // Filter to show all pets or just active ones
   const displayedPets = useMemo(() => {
     return showOnlyActive 
-      ? pets.filter(pet => pet.status === "Active")
-      : pets;
-  }, [showOnlyActive, pets]);
+      ? allPets.filter(pet => pet.status === "Active")
+      : allPets;
+  }, [showOnlyActive, allPets]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
