@@ -12,6 +12,10 @@ module "api-gateway" {
   source               = "./modules/api-gateway"
   google_log_in_function_name = module.lambda-functions.google_log_in_function_name
   google_log_in_invoke_arn    = module.lambda-functions.google_log_in_invoke_arn
+  sightings_listing_function_name = module.lambda-functions.sightings_listing_function_name
+  sightings_listing_invoke_arn = module.lambda-functions.sightings_listing_invoke_arn
+  lost_listing_function_name = module.lambda-functions.lost_listing_function_name
+  lost_listing_invoke_arn = module.lambda-functions.lost_listing_invoke_arn
 }
 
 module "image-bucket" {

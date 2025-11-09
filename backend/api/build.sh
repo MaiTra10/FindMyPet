@@ -4,6 +4,8 @@ set -euo pipefail
 # Define a list of directories that contain main.go files
 LAMBDA_DIRS=(
   "google/log-in"
+  "sighting-listing"
+  "lost-listing"
 )
 
 # Detect root directory of script
