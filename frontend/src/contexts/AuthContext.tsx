@@ -71,7 +71,7 @@ export function AuthProvider({ children, useMockAuth = false }: AuthProviderProp
       }
 
       // For real Google auth, send id_token to backend for verification
-      // Since we don't have a backend, we'll just log in locally
+
       try {
         const response = await fetch("/api/login/google", {
           method: "POST",
