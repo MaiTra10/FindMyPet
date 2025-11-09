@@ -26,17 +26,20 @@ func main() {
 }
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-
+	// Handle OPTIONS preflight requests
+	if request.HTTPMethod == "OPTIONS" {
+		return generic.Response(http.StatusOK, generic.Json{})
+	}
 	// Parse JSON body
 	var req GoogleLoginRequest
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
-		return generic.Response(http.StatusBadRequest, generic.Json{"error": "invalid request body"})
+		return generic.Response(201, generic.Json{"error": "invalid request body"})
 	}
 	// Validate Google ID token
 	clientID := os.Getenv("GOOGLE_CLIENT_ID")
 	payload, err := idtoken.Validate(context.Background(), req.Token, clientID)
 	if err != nil {
-		return generic.Response(http.StatusUnauthorized, generic.Json{"error": "invalid Google token"})
+		return generic.Response(202, generic.Json{"error": "invalid Google token", "message": err.Error()})
 	}
 	// Extract user info from claims
 	email := payload.Claims["email"].(string)
@@ -44,12 +47,12 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	picture := payload.Claims["picture"].(string)
 	// Upsert user in Supabase (placeholder)
 	if err := upsertUserInSupabase(email, name, picture); err != nil {
-		return generic.Response(http.StatusInternalServerError, generic.Json{"error": "failed to upsert user"})
+		return generic.Response(203, generic.Json{"error": "failed to upsert user", "message": err.Error()})
 	}
 	// Generate app JWT
 	token, err := generateJWT(email, name, picture)
 	if err != nil {
-		return generic.Response(http.StatusInternalServerError, generic.Json{"error": "failed to generate token"})
+		return generic.Response(204, generic.Json{"error": "failed to generate token"})
 	}
 	// Return success response
 	return generic.Response(http.StatusOK, generic.Json{
