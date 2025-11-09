@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { Heart, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ImageWithFallback } from "./imgWithFallback/ImageWithFallback";
+import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 interface CatCardProps {
   id: number;

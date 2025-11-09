@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Heart, Share2, Star, Sparkles } from "lucide-react";
-import { ImageWithFallback } from "../components/imgWithFallback/ImageWithFallback";
+import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useState } from "react";
 
 const catsData = [
