@@ -10,3 +10,8 @@ variable "resources" {
 variable "zip_dir_slice" {
     type = string
 }
+variable "environment_variables" {
+  type        = map(string)
+  description = "Environment variables for the Lambda function"
+  default     = {}
+}
