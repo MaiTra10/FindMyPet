@@ -7,6 +7,8 @@ import { AdvancedFilters, AdvancedFilterValues } from "../components/AdvancedFil
 import { Input } from "../components/ui/input";
 import { PageHeader } from "../components/PageHeader";
 import { PetListing, PetType } from "../types/pet";
+import { useUser } from "../components/UserContext";
+import { AuthUser } from "../components/UserContext";
 
 interface ListingsProps {
   selectedPetType: PetType | null;
@@ -18,28 +20,62 @@ export function Listings({ selectedPetType }: ListingsProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [pets, setPets] = useState<PetListing[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => {
+    const stored = localStorage.getItem("authUser");
+    return stored ? JSON.parse(stored) : null;
+  });
 
-  // TODO: Replace with your API call
   useEffect(() => {
     const fetchPets = async () => {
       setIsLoading(true);
+
       try {
-        // Example API call structure:
-        // const response = await fetch('YOUR_API_ENDPOINT/pets');
-        // const data = await response.json();
-        // setPets(data);
-        
-        // For now, pets will be empty until you implement your API
-        setPets([]);
+        const params = new URLSearchParams();
+
+        // --- Basic Filters ---
+        if (selectedPetType) params.append("animalType", selectedPetType);
+        if (searchQuery) params.append("search", searchQuery);
+
+        // --- Filter Bar (Lost/Sighting, Active/Found/etc.) ---
+        const typeFilter = activeFilters.find(f => ["Lost", "Sighting"].includes(f));
+        const statusFilter = activeFilters.find(f => ["Recent", "Active", "Found", "Stale"].includes(f));
+        if (typeFilter) params.append("type", typeFilter);
+        if (statusFilter) params.append("status", statusFilter);
+
+        // --- Advanced Filters ---
+        if (advancedFilters.breed) params.append("breed", advancedFilters.breed);
+        if (advancedFilters.location) params.append("location", advancedFilters.location);
+        if (advancedFilters.gender && advancedFilters.gender !== "all") params.append("gender", advancedFilters.gender);
+        if (advancedFilters.dateRange && advancedFilters.dateRange !== "all") params.append("dateRange", advancedFilters.dateRange);
+        if (advancedFilters.ageRange && advancedFilters.ageRange !== "all") params.append("ageRange", advancedFilters.ageRange);
+
+        console.log("Here is our user", authUser?.raw);
+
+        // --- Build request URL ---
+        const url = `https://hw36ag81i6.execute-api.us-west-2.amazonaws.com/test/lost-listing?${params.toString()}`;
+
+        // --- Make GET request with JWT ---
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${authUser?.raw}`,
+          },
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch pets");
+        const data = await response.json();
+        setPets(data.data);
+
       } catch (error) {
-        console.error('Error fetching pets:', error);
+        console.error("Error fetching pets:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchPets();
-  }, []);
+  }, [selectedPetType, searchQuery, activeFilters, advancedFilters]);
 
   const handleFilterToggle = (filter: string) => {
     setActiveFilters((prev) =>
@@ -169,8 +205,8 @@ export function Listings({ selectedPetType }: ListingsProps) {
   // Sort by recent if filter is active
   const sortedPets = activeFilters.includes("Recent")
     ? [...filteredPets].sort(
-        (a, b) => b.dateReported.getTime() - a.dateReported.getTime()
-      )
+      (a, b) => b.dateReported.getTime() - a.dateReported.getTime()
+    )
     : filteredPets;
 
   return (
@@ -257,8 +293,8 @@ export function Listings({ selectedPetType }: ListingsProps) {
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-foreground mb-2">No pets found</h3>
             <p className="text-muted-foreground">
-              {pets.length === 0 
-                ? "No pet listings available. Add your API integration to load data." 
+              {pets.length === 0
+                ? "No pet listings available. Add your API integration to load data."
                 : "Try adjusting your filters or search query"}
             </p>
           </motion.div>

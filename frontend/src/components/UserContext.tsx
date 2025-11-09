@@ -1,36 +1,40 @@
+// UserContext.tsx
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { UserType } from "./AuthButton";
 
+export interface AuthUser {
+    user: UserType;
+    raw: string; // raw JWT
+}
+
 interface UserContextType {
-    user: UserType | null;
-    setUser: (user: UserType | null) => void;
+    authUser: AuthUser | null;
+    setAuthUser: (authUser: AuthUser | null) => void;
 }
 
 const UserContext = createContext<UserContextType>({
-    user: null,
-    setUser: () => { },
+    authUser: null,
+    setAuthUser: () => { },
 });
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
-    const [user, setUser] = useState<UserType | null>(null);
+    const [authUser, setAuthUser] = useState<AuthUser | null>(null);
 
-    // Load user from localStorage on initial mount
     useEffect(() => {
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) setUser(JSON.parse(storedUser));
+        const stored = localStorage.getItem("authUser");
+        if (stored) setAuthUser(JSON.parse(stored));
     }, []);
 
-    // Save user to localStorage whenever it changes
     useEffect(() => {
-        if (user) {
-            localStorage.setItem("user", JSON.stringify(user));
+        if (authUser) {
+            localStorage.setItem("authUser", JSON.stringify(authUser));
         } else {
-            localStorage.removeItem("user");
+            localStorage.removeItem("authUser");
         }
-    }, [user]);
+    }, [authUser]);
 
     return (
-        <UserContext.Provider value={{ user, setUser }}>
+        <UserContext.Provider value={{ authUser, setAuthUser }}>
             {children}
         </UserContext.Provider>
     );

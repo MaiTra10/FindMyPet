@@ -51,10 +51,10 @@ resource "aws_api_gateway_method" "options_method" {
 
 # Mock integration to handle OPTIONS
 resource "aws_api_gateway_integration" "options_integration" {
-  rest_api_id             = var.rest_api_id
-  resource_id             = aws_api_gateway_resource.path.id
-  http_method             = aws_api_gateway_method.options_method.http_method
-  type                    = "MOCK"
+  rest_api_id = var.rest_api_id
+  resource_id = aws_api_gateway_resource.path.id
+  http_method = aws_api_gateway_method.options_method.http_method
+  type        = "MOCK"
 
   request_templates = {
     "application/json" = "{\"statusCode\": 200}"
@@ -88,7 +88,7 @@ resource "aws_api_gateway_integration_response" "options_integration_response" {
 
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS,GET'"
     "method.response.header.Access-Control-Allow-Origin"  = "'*'"
   }
 }

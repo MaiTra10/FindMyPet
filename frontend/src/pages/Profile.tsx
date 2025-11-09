@@ -41,20 +41,20 @@ interface UserStats {
 }
 
 export function Profile() {
-  const { user } = useUser();
+  const { authUser } = useUser();
   const [activeTab, setActiveTab] = useState<"listings" | "badges" | "stats">("listings");
   const [userListings, setUserListings] = useState<PetListing[]>([]);
   const [isLoadingListings, setIsLoadingListings] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!authUser) return;
     // fetch user listings
-  }, [user]);
+  }, [authUser]);
 
   // TODO: Replace with your API call
   useEffect(() => {
     const fetchUserListings = async () => {
-      if (!user) return;
+      if (!authUser) return;
 
       setIsLoadingListings(true);
       try {
@@ -73,9 +73,9 @@ export function Profile() {
     };
 
     fetchUserListings();
-  }, [user]);
+  }, [authUser]);
 
-  if (!user) {
+  if (!authUser) {
     return (
       <div className="min-h-screen flex items-center justify-center ml-32">
         <div className="text-center">
@@ -174,7 +174,7 @@ export function Profile() {
     },
   ];
 
-  const initials = user.name
+  const initials = authUser.user.name
     .split(" ")
     .map((n) => n[0])
     .join("")
@@ -201,7 +201,7 @@ export function Profile() {
                 className="flex-shrink-0"
               >
                 <Avatar className="h-24 w-24 border-4 border-background shadow-xl">
-                  <AvatarImage src={user.picture} alt={user.name} />
+                  <AvatarImage src={authUser.user.picture} alt={authUser.user.name} />
                   <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-2xl">
                     {initials}
                   </AvatarFallback>
@@ -211,7 +211,7 @@ export function Profile() {
               {/* User Info */}
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-foreground">{user.name}</h1>
+                  <h1 className="text-foreground">{authUser.user.name}</h1>
                   {userStats.peopleHelped >= 5 && (
                     <Badge className="bg-primary/10 text-primary border-primary/30 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" />
@@ -219,7 +219,7 @@ export function Profile() {
                     </Badge>
                   )}
                 </div>
-                <p className="text-muted-foreground mb-4">{user.email}</p>
+                <p className="text-muted-foreground mb-4">{authUser.user.email}</p>
 
                 {/* Quick Stats */}
                 <div className="flex flex-wrap gap-4">
