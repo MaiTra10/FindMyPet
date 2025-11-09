@@ -4,23 +4,22 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { LoginModal } from "./LoginModal";
+import { useUser } from "./UserContext";
+
+export interface UserType {
+  id: string;
+  name: string;
+  email: string;
+  picture?: string;
+}
 
 export function AuthButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const { user, setUser } = useUser();
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-
-  // TODO: Replace these with your own auth state
-  const isAuthenticated = false; // Set to true when user is logged in
-  const user = null; // Set to your user object when logged in
-  // Example user object:
-  // const user = {
-  //   id: "123",
-  //   name: "John Doe",
-  //   email: "john@example.com",
-  //   picture: "https://example.com/avatar.jpg"
-  // };
+  const isAuthenticated = !!user; // true if user object exists
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -38,14 +37,13 @@ export function AuthButton() {
   }, [isOpen]);
 
   const handleLogout = () => {
-    // TODO: Add your logout logic here
-    console.log("Logout clicked - implement your logout logic");
+    setUser(null); // automatically clears localStorage
     setIsOpen(false);
     navigate("/");
   };
 
   // If not authenticated, show sign in button
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated) {
     return (
       <>
         <motion.button
@@ -61,9 +59,13 @@ export function AuthButton() {
           <span className="font-medium">Sign In</span>
         </motion.button>
 
-        <LoginModal 
-          isOpen={showLoginModal} 
-          onClose={() => setShowLoginModal(false)} 
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onLoginSuccess={(user) => {
+            setUser(user); // UserContext handles saving to localStorage
+            setShowLoginModal(false);
+          }}
         />
       </>
     );
@@ -72,11 +74,11 @@ export function AuthButton() {
   // If authenticated, show user menu
   const initials = user.name
     ? user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
     : "U";
 
   return (
@@ -102,10 +104,9 @@ export function AuthButton() {
             {user.email || ""}
           </p>
         </div>
-        <ChevronDown 
-          className={`w-4 h-4 text-muted-foreground transition-transform ${
-            isOpen ? "rotate-180" : ""
-          }`} 
+        <ChevronDown
+          className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""
+            }`}
         />
       </motion.button>
 
@@ -129,7 +130,7 @@ export function AuthButton() {
                 <User className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium">View Profile</span>
               </button>
-              
+
               <button
                 onClick={() => {
                   setIsOpen(false);
@@ -141,9 +142,9 @@ export function AuthButton() {
                 <FileText className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm">My Reports</span>
               </button>
-              
+
               <div className="w-full h-px bg-border my-1" />
-              
+
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-destructive/10 text-destructive transition-colors text-left"
